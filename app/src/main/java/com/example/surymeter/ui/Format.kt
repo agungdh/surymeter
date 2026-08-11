@@ -21,5 +21,21 @@ object Format {
 
     fun speed(bps: Long): String = "${bytes(bps)}/s"
 
+    fun speedParts(bps: Long): Pair<String, String> {
+        var v = bps.toDouble() * 8
+        val units = arrayOf("bps", "kbps", "mbps", "gbps")
+        var i = 0
+        while (v >= 1000 && i < units.size - 1) {
+            v /= 1000
+            i++
+        }
+        val num = if (i == 0) {
+            v.toLong().toString()
+        } else {
+            String.format(Locale.US, "%.1f", v)
+        }
+        return num to units[i]
+    }
+
     fun dateLabel(date: String): String = date.substringAfterLast('-')
 }

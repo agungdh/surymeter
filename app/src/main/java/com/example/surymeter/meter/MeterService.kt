@@ -7,6 +7,7 @@ import android.content.pm.ServiceInfo
 import android.net.TrafficStats
 import android.os.IBinder
 import android.os.SystemClock
+import android.provider.Settings
 import com.example.surymeter.data.DailyUsage
 import com.example.surymeter.data.DayKey
 import com.example.surymeter.data.PersistedState
@@ -15,6 +16,7 @@ import com.example.surymeter.data.TrafficSnapshot
 import com.example.surymeter.data.UsageStorage
 import com.example.surymeter.data.UsageTracker
 import com.example.surymeter.data.toTotals
+import com.example.surymeter.ui.Format
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,6 +35,7 @@ class MeterService : Service() {
     private var state: PersistedState? = null
     private var prev: PrevState? = null
     private var day: DailyUsage? = null
+    private val overlay = SpeedOverlay()
 
     override fun onCreate() {
         super.onCreate()
@@ -61,6 +64,9 @@ class MeterService : Service() {
                     days = loaded.daily.values.sortedByDescending { d -> d.date }
                 )
             }
+            if (Settings.canDrawOverlays(this)) {
+                overlay.show(this)
+            }
             job = scope.launch { meterLoop(loaded) }
         }
         return START_STICKY
@@ -73,6 +79,7 @@ class MeterService : Service() {
         state = null
         prev = null
         day = null
+        overlay.hide(this)
         MeterState.update { it.copy(running = false) }
         super.onDestroy()
     }
@@ -129,6 +136,9 @@ class MeterService : Service() {
             MeterState.update {
                 it.copy(speeds = result.speeds, totals = result.newTotals, today = today)
             }
+
+            val (speedNum, speedUnit) = Format.speedParts(maxOf(result.speeds.wifiRx, result.speeds.mobileRx))
+            overlay.update(speedNum, speedUnit)
 
             notifier.notify(
                 MeterNotification.NOTIFICATION_ID,

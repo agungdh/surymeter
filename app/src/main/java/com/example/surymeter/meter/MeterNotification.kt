@@ -50,6 +50,8 @@ object MeterNotification {
             context.packageName,
             R.layout.notification_content
         )
+        val mainDown = maxOf(speeds.wifiRx, speeds.mobileRx)
+        val (speedNum, speedUnit) = Format.speedParts(mainDown)
         content.setTextViewText(R.id.title, context.getString(R.string.notif_title))
         content.setTextViewText(
             R.id.total_today,
@@ -58,15 +60,21 @@ object MeterNotification {
                 Format.bytes(today.total)
             )
         )
+        content.setTextViewText(R.id.speed_value, speedNum)
+        content.setTextViewText(R.id.speed_unit, speedUnit)
         content.setTextViewText(R.id.wifi_label, context.getString(R.string.net_wifi))
-        content.setTextViewText(R.id.wifi_down, Format.speed(speeds.wifiRx))
-        content.setTextViewText(R.id.wifi_up, Format.speed(speeds.wifiTx))
+        content.setTextViewText(
+            R.id.wifi_line,
+            "↓ ${Format.bytes(speeds.wifiRx)}  ↑ ${Format.bytes(speeds.wifiTx)}"
+        )
         content.setTextViewText(R.id.mobile_label, context.getString(R.string.net_mobile))
-        content.setTextViewText(R.id.mobile_down, Format.speed(speeds.mobileRx))
-        content.setTextViewText(R.id.mobile_up, Format.speed(speeds.mobileTx))
+        content.setTextViewText(
+            R.id.mobile_line,
+            "↓ ${Format.bytes(speeds.mobileRx)}  ↑ ${Format.bytes(speeds.mobileTx)}"
+        )
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_traffic)
+            .setSmallIcon(R.drawable.ic_stat_download)
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText(Format.bytes(totals.total))
             .setOngoing(true)
