@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">SuryMeter</string>
+    <string name="notif_title">Internet Meter</string>
+    <string name="notif_total_today">Today: %1$s</string>
+    <string name="notif_download">Download</string>
+    <string name="notif_upload">Upload</string>
+    <string name="notif_stop">Stop</string>
+    <string name="net_wifi">WiFi</string>
+    <string name="net_mobile">Data</string>
 </resources>
