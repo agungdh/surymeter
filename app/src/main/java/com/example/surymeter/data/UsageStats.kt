@@ -3,6 +3,8 @@ package com.example.surymeter.data
 data class TrafficSnapshot(
     val totalRx: Long,
     val totalTx: Long,
+    val wifiRx: Long,
+    val wifiTx: Long,
     val mobileRx: Long,
     val mobileTx: Long
 )
@@ -43,7 +45,7 @@ data class Totals(
     val mobileTotal: Long get() = mobileRx + mobileTx
 }
 
-fun TrafficSnapshot.wifiRx(): Long = totalRx - mobileRx
-fun TrafficSnapshot.wifiTx(): Long = totalTx - mobileTx
+fun TrafficSnapshot.wifiRx(): Long = wifiRx
+fun TrafficSnapshot.wifiTx(): Long = wifiTx
 
 fun DailyUsage.toTotals(): Totals = Totals(wifiRx, wifiTx, mobileRx, mobileTx)

@@ -21,12 +21,21 @@ object Format {
 
     fun speed(bps: Long): String = "${bytes(bps)}/s"
 
-    fun speedParts(bps: Long): Pair<String, String> {
-        var v = bps.toDouble() * 8
-        val units = arrayOf("bps", "kbps", "mbps", "gbps")
+    fun speedParts(bps: Long): Pair<String, String> = speedParts(bps, useBits = true)
+
+    fun speedParts(bps: Long, useBits: Boolean): Pair<String, String> {
+        var v = bps.toDouble()
+        val units: Array<String>
+        if (useBits) {
+            v *= 8
+            units = arrayOf("bps", "kbps", "mbps", "gbps")
+        } else {
+            units = arrayOf("B/s", "KB/s", "MB/s", "GB/s")
+        }
+        val base = if (useBits) 1000 else 1024
         var i = 0
-        while (v >= 1000 && i < units.size - 1) {
-            v /= 1000
+        while (v >= base && i < units.size - 1) {
+            v /= base
             i++
         }
         val num = if (i == 0) {

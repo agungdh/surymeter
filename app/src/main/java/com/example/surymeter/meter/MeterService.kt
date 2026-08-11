@@ -3,15 +3,18 @@ package com.example.surymeter.meter
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
-import android.net.TrafficStats
 import android.os.IBinder
 import android.os.SystemClock
-import android.provider.Settings
+import android.provider.Settings as AndroidSettings
 import com.example.surymeter.data.DailyUsage
 import com.example.surymeter.data.DayKey
 import com.example.surymeter.data.PersistedState
 import com.example.surymeter.data.PrevState
+import com.example.surymeter.data.Settings
+import com.example.surymeter.data.SignalReader
+import com.example.surymeter.data.TrafficReader
 import com.example.surymeter.data.TrafficSnapshot
 import com.example.surymeter.data.UsageStorage
 import com.example.surymeter.data.UsageTracker
@@ -36,11 +39,25 @@ class MeterService : Service() {
     private var prev: PrevState? = null
     private var day: DailyUsage? = null
     private val overlay = SpeedOverlay()
+    private val screenReceiver = ScreenReceiver()
 
     override fun onCreate() {
         super.onCreate()
+        Settings.init(this)
         MeterNotification.createChannel(this)
         storage = UsageStorage(this)
+        registerScreenReceiver()
+    }
+
+    private fun registerScreenReceiver() {
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        try {
+            registerReceiver(screenReceiver, filter)
+        } catch (_: Exception) {
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -53,7 +70,12 @@ class MeterService : Service() {
             state = loaded
             startForeground(
                 MeterNotification.NOTIFICATION_ID,
-                MeterNotification.build(this, MeterUiState().speeds, loaded.totals, loaded.totals),
+                MeterNotification.build(
+                    this,
+                    MeterUiState().speeds,
+                    today = loaded.totals,
+                    totals = loaded.totals
+                ),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             )
             MeterState.update {
@@ -64,7 +86,7 @@ class MeterService : Service() {
                     days = loaded.daily.values.sortedByDescending { d -> d.date }
                 )
             }
-            if (Settings.canDrawOverlays(this)) {
+            if (AndroidSettings.canDrawOverlays(this)) {
                 overlay.show(this)
             }
             job = scope.launch { meterLoop(loaded) }
@@ -74,6 +96,10 @@ class MeterService : Service() {
 
     override fun onDestroy() {
         finalFlush()
+        try {
+            unregisterReceiver(screenReceiver)
+        } catch (_: Exception) {
+        }
         scope.cancel()
         job = null
         state = null
@@ -90,6 +116,8 @@ class MeterService : Service() {
         var prevState = PrevState(
             lastTotalRx = loaded.lastTotalRx,
             lastTotalTx = loaded.lastTotalTx,
+            lastWifiRx = loaded.lastWifiRx,
+            lastWifiTx = loaded.lastWifiTx,
             lastMobileRx = loaded.lastMobileRx,
             lastMobileTx = loaded.lastMobileTx,
             timestamp = SystemClock.elapsedRealtime(),
@@ -111,46 +139,66 @@ class MeterService : Service() {
 
         while (isActive) {
             val nowTime = SystemClock.elapsedRealtime()
-            val snapshot = readSnapshot()
-            val result = UsageTracker.sample(prevState, snapshot, nowTime)
-            prevState = result.newLast
-            prev = prevState
-            state = loaded
-            day = today
+            val screenOnNow = MeterState.snapshot().screenOn
+            val pausedForScreenOff = Settings.pauseWhenScreenOff && !screenOnNow
 
-            val currentKey = DayKey.today()
-            if (currentKey != todayKey) {
-                loaded.daily[today.date] = today
-                today = DailyUsage.empty(currentKey)
-                todayKey = currentKey
+            if (!pausedForScreenOff) {
+                val snapshot = readSnapshot()
+                val result = UsageTracker.sample(prevState, snapshot, nowTime)
+                prevState = result.newLast
+                prev = prevState
+                state = loaded
+                day = today
+
+                val currentKey = DayKey.today()
+                if (currentKey != todayKey) {
+                    loaded.daily[today.date] = today
+                    today = DailyUsage.empty(currentKey)
+                    todayKey = currentKey
+                }
+                today = DailyUsage(
+                    date = today.date,
+                    wifiRx = today.wifiRx + result.delta.wifiRx,
+                    wifiTx = today.wifiTx + result.delta.wifiTx,
+                    mobileRx = today.mobileRx + result.delta.mobileRx,
+                    mobileTx = today.mobileTx + result.delta.mobileTx
+                )
+                day = today
+
+                MeterState.update {
+                    it.copy(
+                        speeds = result.speeds,
+                        totals = result.newTotals,
+                        today = today,
+                        screenOn = screenOnNow
+                    )
+                }
+
+                val (speedNum, speedUnit) = Format.speedParts(
+                    maxOf(result.speeds.wifiRx, result.speeds.mobileRx),
+                    Settings.useBits
+                )
+                overlay.update(speedNum, speedUnit)
+
+                if (nowTime - lastFlush >= FLUSH_INTERVAL_MS) {
+                    flush(loaded, prevState, today)
+                    lastFlush = nowTime
+                }
             }
-            today = DailyUsage(
-                date = today.date,
-                wifiRx = today.wifiRx + result.delta.wifiRx,
-                wifiTx = today.wifiTx + result.delta.wifiTx,
-                mobileRx = today.mobileRx + result.delta.mobileRx,
-                mobileTx = today.mobileTx + result.delta.mobileTx
-            )
-            day = today
 
-            MeterState.update {
-                it.copy(speeds = result.speeds, totals = result.newTotals, today = today)
-            }
-
-            val (speedNum, speedUnit) = Format.speedParts(maxOf(result.speeds.wifiRx, result.speeds.mobileRx))
-            overlay.update(speedNum, speedUnit)
-
+            MeterState.update { it.copy(screenOn = screenOnNow) }
             notifier.notify(
                 MeterNotification.NOTIFICATION_ID,
-                MeterNotification.build(this@MeterService, result.speeds, today.toTotals(), result.newTotals)
+                MeterNotification.build(
+                    this@MeterService,
+                    MeterState.snapshot().speeds,
+                    SignalReader.read(this@MeterService),
+                    today.toTotals(),
+                    prevState.totals
+                )
             )
 
-            if (nowTime - lastFlush >= FLUSH_INTERVAL_MS) {
-                flush(loaded, prevState, today)
-                lastFlush = nowTime
-            }
-
-            delay(SAMPLE_INTERVAL_MS)
+            delay(if (pausedForScreenOff) SAMPLE_INTERVAL_SCREEN_OFF_MS else SAMPLE_INTERVAL_MS)
         }
     }
 
@@ -159,6 +207,8 @@ class MeterService : Service() {
         state.totals = prev.totals
         state.lastTotalRx = prev.lastTotalRx
         state.lastTotalTx = prev.lastTotalTx
+        state.lastWifiRx = prev.lastWifiRx
+        state.lastWifiTx = prev.lastWifiTx
         state.lastMobileRx = prev.lastMobileRx
         state.lastMobileTx = prev.lastMobileTx
         storage.save(state)
@@ -175,18 +225,14 @@ class MeterService : Service() {
     }
 
     private fun readSnapshot(): TrafficSnapshot = try {
-        TrafficSnapshot(
-            totalRx = TrafficStats.getTotalRxBytes().coerceAtLeast(0),
-            totalTx = TrafficStats.getTotalTxBytes().coerceAtLeast(0),
-            mobileRx = TrafficStats.getMobileRxBytes().coerceAtLeast(0),
-            mobileTx = TrafficStats.getMobileTxBytes().coerceAtLeast(0)
-        )
+        TrafficReader.snapshot()
     } catch (_: Exception) {
-        TrafficSnapshot(0, 0, 0, 0)
+        TrafficSnapshot(0, 0, 0, 0, 0, 0)
     }
 
     companion object {
         private const val SAMPLE_INTERVAL_MS = 1000L
+        private const val SAMPLE_INTERVAL_SCREEN_OFF_MS = 60_000L
         private const val FLUSH_INTERVAL_MS = 30_000L
     }
 }

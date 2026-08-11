@@ -7,4 +7,27 @@
     <string name="notif_stop">Stop</string>
     <string name="net_wifi">WiFi</string>
     <string name="net_mobile">Data</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_notif_style">Notification content</string>
+    <string name="notif_style_speed">Speed only</string>
+    <string name="notif_style_updown">Speed + up/down</string>
+    <string name="notif_style_networks">Speed + WiFi/Data</string>
+    <string name="notif_style_full">Everything</string>
+    <string name="settings_use_bits">Show speed in bits</string>
+    <string name="settings_use_bits_summary">Use bps/kbps instead of B/s/KB/s</string>
+    <string name="settings_lockscreen">Show on lock screen</string>
+    <string name="settings_lockscreen_summary">Allow the speed notification to appear on the lock screen</string>
+    <string name="settings_signal">Show signal strength</string>
+    <string name="settings_signal_summary">Display WiFi and mobile signal percentage in the notification</string>
+    <string name="settings_pause_screen_off">Pause while screen is off</string>
+    <string name="settings_pause_screen_off_summary">Stop sampling when the screen is off to save battery. Data used while off is still counted.</string>
+
+    <string name="battery_title">App restricted from running in background</string>
+    <string name="battery_body">Disable battery optimization so SuryMeter can keep measuring your internet usage in the background.</string>
+    <string name="battery_allow">Allow</string>
+    <string name="battery_later">Later</string>
+
+    <string name="signal_wifi">WiFi</string>
+    <string name="signal_mobile">Data</string>
 </resources>

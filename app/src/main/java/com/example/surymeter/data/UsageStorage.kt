@@ -7,6 +7,8 @@ class PersistedState(
     var totals: Totals = Totals(),
     var lastTotalRx: Long = -1,
     var lastTotalTx: Long = -1,
+    var lastWifiRx: Long = -1,
+    var lastWifiTx: Long = -1,
     var lastMobileRx: Long = -1,
     var lastMobileTx: Long = -1,
     val daily: MutableMap<String, DailyUsage> = LinkedHashMap()
@@ -38,6 +40,8 @@ class UsageStorage(context: Context) {
             ),
             lastTotalRx = prefs.getLong("last_total_rx", -1),
             lastTotalTx = prefs.getLong("last_total_tx", -1),
+            lastWifiRx = prefs.getLong("last_wifi_rx", -1),
+            lastWifiTx = prefs.getLong("last_wifi_tx", -1),
             lastMobileRx = prefs.getLong("last_mobile_rx", -1),
             lastMobileTx = prefs.getLong("last_mobile_tx", -1)
         )
@@ -71,6 +75,8 @@ class UsageStorage(context: Context) {
         editor.putLong("acc_mobile_tx", state.totals.mobileTx)
         editor.putLong("last_total_rx", state.lastTotalRx)
         editor.putLong("last_total_tx", state.lastTotalTx)
+        editor.putLong("last_wifi_rx", state.lastWifiRx)
+        editor.putLong("last_wifi_tx", state.lastWifiTx)
         editor.putLong("last_mobile_rx", state.lastMobileRx)
         editor.putLong("last_mobile_tx", state.lastMobileTx)
 

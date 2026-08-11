@@ -1,6 +1,7 @@
 package com.example.surymeter.meter
 
 import com.example.surymeter.data.DailyUsage
+import com.example.surymeter.data.SignalInfo
 import com.example.surymeter.data.Speeds
 import com.example.surymeter.data.Totals
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,7 +10,9 @@ import kotlinx.coroutines.flow.asStateFlow
 
 data class MeterUiState(
     val running: Boolean = false,
+    val screenOn: Boolean = true,
     val speeds: Speeds = Speeds(),
+    val signal: SignalInfo = SignalInfo(),
     val today: DailyUsage = DailyUsage.empty(),
     val totals: Totals = Totals(),
     val days: List<DailyUsage> = emptyList()

@@ -3,6 +3,8 @@ package com.example.surymeter.data
 data class PrevState(
     val lastTotalRx: Long,
     val lastTotalTx: Long,
+    val lastWifiRx: Long,
+    val lastWifiTx: Long,
     val lastMobileRx: Long,
     val lastMobileTx: Long,
     val timestamp: Long,
@@ -23,10 +25,10 @@ object UsageTracker {
 
         val dTotalRx = delta(now.totalRx, prev?.lastTotalRx)
         val dTotalTx = delta(now.totalTx, prev?.lastTotalTx)
+        val dWifiRx = delta(now.wifiRx, prev?.lastWifiRx)
+        val dWifiTx = delta(now.wifiTx, prev?.lastWifiTx)
         val dMobileRx = delta(now.mobileRx, prev?.lastMobileRx)
         val dMobileTx = delta(now.mobileTx, prev?.lastMobileTx)
-        val dWifiRx = (dTotalRx - dMobileRx).coerceAtLeast(0)
-        val dWifiTx = (dTotalTx - dMobileTx).coerceAtLeast(0)
 
         val newTotals = Totals(
             wifiRx = (prev?.totals?.wifiRx ?: 0) + dWifiRx,
@@ -50,6 +52,8 @@ object UsageTracker {
             newLast = PrevState(
                 lastTotalRx = now.totalRx,
                 lastTotalTx = now.totalTx,
+                lastWifiRx = now.wifiRx,
+                lastWifiTx = now.wifiTx,
                 lastMobileRx = now.mobileRx,
                 lastMobileTx = now.mobileTx,
                 timestamp = nowTime,
